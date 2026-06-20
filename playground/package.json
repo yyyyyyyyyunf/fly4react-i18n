@@ -1,0 +1,28 @@
+{
+  "name": "@fly4react/i18n-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "generate": "fly4react-i18n generate",
+    "check": "fly4react-i18n check"
+  },
+  "dependencies": {
+    "@fly4react/i18n-core": "workspace:*",
+    "@fly4react/i18n-react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@fly4react/i18n-cli": "workspace:*",
+    "@fly4react/i18n-vite": "workspace:*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}

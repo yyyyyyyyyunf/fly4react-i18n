@@ -1,0 +1,13 @@
+node_modules
+*.log
+dist
+build
+coverage
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+
+# Generated i18n files
+**/src/generated/i18n
+

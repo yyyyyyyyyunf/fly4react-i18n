@@ -1,0 +1,6 @@
+{
+  "greeting": "你好，{name}！",
+  "counter": "你有 {count, plural, one {# 条消息} other {# 条消息}}。",
+  "tos": "请阅读我们的<link>服务条款</link>。",
+  "switchLanguage": "切换到 {locale}"
+}

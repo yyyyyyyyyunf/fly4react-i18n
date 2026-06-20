@@ -1,0 +1,6 @@
+{
+  "greeting": "Hello, {name}!",
+  "counter": "You have {count, plural, one {# message} other {# messages}}.",
+  "tos": "Please read our <link>Terms of Service</link>.",
+  "switchLanguage": "Switch to {locale}"
+}

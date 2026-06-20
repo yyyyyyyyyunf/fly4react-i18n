@@ -1,0 +1,41 @@
+{
+  "name": "@fly4react/i18n-cli",
+  "version": "0.0.0",
+  "description": "CLI for @fly4react/i18n: codegen and locale checks",
+  "license": "MIT",
+  "author": "Jacob Zong",
+  "type": "module",
+  "bin": {
+    "fly4react-i18n": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fly4react/i18n-core": "workspace:*",
+    "@formatjs/icu-messageformat-parser": "^2.7.8",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.3.2",
+    "picocolors": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
