@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: quality
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm build
+
+      - name: Publish to npm and create GitHub Releases
+        uses: changesets/action@v1
+        with:
+          publish: pnpm exec changeset publish
+          createGitHubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+  merge-release:
+    name: Merge release into main
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch release branch
+        run: git fetch origin release
+
+      - name: Merge release into main
+        id: merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git merge origin/release --no-edit --no-ff -m "chore(release): merge release into main"; then
+            git push origin main
+            echo "✅ release branch merged into main."
+          else
+            git merge --abort
+            gh pr create \
+              --base main \
+              --head release \
+              --title "chore(release): merge release into main" \
+              --body "Automatic merge of \`release\` into \`main\` failed due to conflicts. Please resolve manually." \
+              || true
+            echo "⚠️ Created merge PR due to conflicts."
+            exit 1
+          fi
