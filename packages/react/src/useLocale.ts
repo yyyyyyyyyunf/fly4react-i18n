@@ -1,4 +1,4 @@
-import { useI18nContext } from './context.js';
+import { useI18nDataContext, useI18nApiContext } from './context.js';
 
 export interface UseLocaleResult {
   locale: string;
@@ -6,6 +6,7 @@ export interface UseLocaleResult {
 }
 
 export function useLocale(): UseLocaleResult {
-  const { locale, setLocale } = useI18nContext();
+  const { locale } = useI18nDataContext();
+  const { setLocale } = useI18nApiContext();
   return { locale, setLocale };
 }

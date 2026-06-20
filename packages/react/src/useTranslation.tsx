@@ -1,5 +1,5 @@
 import { useCallback, Fragment } from 'react';
-import { useI18nContext } from './context.js';
+import { useI18nDataContext, useI18nApiContext, useI18nLoadingContext } from './context.js';
 import { formatRich } from '@fly4react/i18n-core';
 import type { Message, MessagesMap, RichTagHandler } from '@fly4react/i18n-core';
 import type { ReactNode } from 'react';
@@ -59,8 +59,10 @@ export function useTranslation(
   options: UseTranslationOptions = {},
 ): UseTranslationResult<string> {
   const { suspense = true } = options;
-  const context = useI18nContext();
-  const { i18n, locale, isLoading: checkLoading, loadNamespace, setLocale } = context;
+  const { i18n, locale } = useI18nDataContext();
+  const { isLoading: checkLoading, loadNamespace, setLocale } = useI18nApiContext();
+  // Subscribe to loading state so we re-render when the namespace finishes loading.
+  useI18nLoadingContext();
 
   const loading = checkLoading(namespace);
 

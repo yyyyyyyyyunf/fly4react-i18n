@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { I18nContext } from './context.js';
+import { I18nContext, I18nDataContext, I18nApiContext, I18nLoadingContext } from './context.js';
+import { useLatestValueRef } from './hooks/useLatestValueRef.js';
 import type { I18nInstance, NamespaceMessages } from '@fly4react/i18n-core';
 import type { ReactNode } from 'react';
 
@@ -9,7 +10,15 @@ export interface I18nProviderProps {
   children: ReactNode;
 }
 
-export function I18nProvider({ i18n, locale: initialLocale, children }: I18nProviderProps) {
+export function I18nProvider({
+  i18n: i18nProp,
+  locale: initialLocale,
+  children,
+}: I18nProviderProps) {
+  // Guard against an unstable i18n prop by pinning the first received instance.
+  const i18nRef = useRef(i18nProp);
+  const i18n = i18nRef.current;
+
   const [locale, setLocaleState] = useState(() => initialLocale ?? i18n.defaultLocale);
   const [loaded, setLoaded] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -26,30 +35,31 @@ export function I18nProvider({ i18n, locale: initialLocale, children }: I18nProv
   });
   const loading = useRef<Map<string, Promise<void>>>(new Map());
 
-  const isLoading = useCallback(
-    (namespace: string) => {
-      return !loaded.has(cacheKey(locale, namespace));
-    },
-    [loaded, locale],
-  );
+  const localeRef = useLatestValueRef(locale);
+  const loadedRef = useLatestValueRef(loaded);
+
+  const isLoading = useCallback((namespace: string) => {
+    return !loadedRef.current.has(cacheKey(localeRef.current, namespace));
+  }, []);
 
   const getNamespace = useCallback(
     (namespace: string): NamespaceMessages | undefined => {
-      if (loaded.has(cacheKey(locale, namespace))) {
-        return i18n.getNamespace(locale, namespace);
+      const currentLocale = localeRef.current;
+      if (loadedRef.current.has(cacheKey(currentLocale, namespace))) {
+        return i18n.getNamespace(currentLocale, namespace);
       }
-      if (loaded.has(cacheKey(i18n.defaultLocale, namespace))) {
+      if (loadedRef.current.has(cacheKey(i18n.defaultLocale, namespace))) {
         return i18n.getNamespace(i18n.defaultLocale, namespace);
       }
       return undefined;
     },
-    [i18n, loaded, locale],
+    [i18n],
   );
 
   const loadNamespace = useCallback(
     async (namespace: string): Promise<void> => {
-      const key = cacheKey(locale, namespace);
-      if (loaded.has(key)) return;
+      const key = cacheKey(localeRef.current, namespace);
+      if (loadedRef.current.has(key)) return;
 
       const existing = loading.current.get(key);
       if (existing) {
@@ -57,22 +67,24 @@ export function I18nProvider({ i18n, locale: initialLocale, children }: I18nProv
         return;
       }
 
-      const promise = i18n.loadNamespace(locale, namespace).then(() => {
-        setLoaded((prev) => new Set([...prev, key]));
-      });
+      const promise = i18n
+        .loadNamespace(localeRef.current, namespace)
+        .then(() => {
+          setLoaded((prev) => new Set([...prev, key]));
+        })
+        .finally(() => {
+          loading.current.delete(key);
+        });
 
       loading.current.set(key, promise);
       await promise;
     },
-    [i18n, loaded, locale],
+    [i18n],
   );
 
   const setLocale = useCallback(
     async (newLocale: string) => {
-      if (newLocale === locale) return;
-
-      i18n.config.persistence?.set(newLocale, createClientContext());
-      setLocaleState(newLocale);
+      if (newLocale === localeRef.current) return;
 
       const namespaces = Object.keys(i18n.config.messages ?? {});
       await Promise.all(
@@ -82,23 +94,58 @@ export function I18nProvider({ i18n, locale: initialLocale, children }: I18nProv
           }),
         ),
       );
+
+      // Ignore stale results if another setLocale raced ahead.
+      if (newLocale === localeRef.current) {
+        i18n.config.persistence?.set(newLocale, createClientContext());
+        setLocaleState(newLocale);
+      }
     },
-    [i18n, locale],
+    [i18n],
   );
 
-  const value = useMemo(
+  const dataValue = useMemo(
     () => ({
       i18n,
       locale,
+    }),
+    [i18n, locale],
+  );
+
+  const apiValue = useMemo(
+    () => ({
       setLocale,
       isLoading,
       getNamespace,
       loadNamespace,
     }),
-    [i18n, locale, setLocale, isLoading, getNamespace, loadNamespace],
+    [setLocale, isLoading, getNamespace, loadNamespace],
   );
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  const loadingValue = useMemo(
+    () => ({
+      loaded,
+    }),
+    [loaded],
+  );
+
+  const legacyValue = useMemo(
+    () => ({
+      ...dataValue,
+      ...apiValue,
+    }),
+    [dataValue, apiValue],
+  );
+
+  return (
+    <I18nDataContext.Provider value={dataValue}>
+      <I18nLoadingContext.Provider value={loadingValue}>
+        <I18nApiContext.Provider value={apiValue}>
+          <I18nContext.Provider value={legacyValue}>{children}</I18nContext.Provider>
+        </I18nApiContext.Provider>
+      </I18nLoadingContext.Provider>
+    </I18nDataContext.Provider>
+  );
 }
 
 function cacheKey(locale: string, namespace: string): string {
